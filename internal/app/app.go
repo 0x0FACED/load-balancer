@@ -8,6 +8,7 @@ import (
 	"github.com/0x0FACED/load-balancer/config"
 	"github.com/0x0FACED/load-balancer/internal/limitter"
 	"github.com/0x0FACED/zlog"
+	"go.uber.org/multierr"
 )
 
 type App struct {
@@ -60,9 +61,16 @@ func (a *App) Shutdown() error {
 
 	if err := a.srv.Shutdown(ctx); err != nil {
 		a.log.Error().Err(err).Msg("Failed to shutdown application server")
-		retErr = err
+		multierr.Append(retErr, err)
 	} else {
 		a.log.Info().Msg("Application server stopped")
+	}
+
+	if err := a.limitter.Stop(); err != nil {
+		a.log.Error().Err(err).Msg("Failed to stop rate limiter")
+		multierr.Append(retErr, err)
+	} else {
+		a.log.Info().Msg("Rate limiter stopped")
 	}
 
 	return retErr
