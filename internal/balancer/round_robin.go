@@ -1,6 +1,10 @@
 package balancer
 
-import "sync"
+import (
+	"errors"
+	"fmt"
+	"sync"
+)
 
 type RoundRobinBalancer struct {
 	backends []string
@@ -21,14 +25,16 @@ func (b *RoundRobinBalancer) Next() (string, error) {
 	defer b.mu.Unlock()
 
 	if len(b.backends) == 0 {
-		return "", nil
+		return "", errors.New("no available backends")
 	}
 
 	backend := b.backends[b.current]
 	b.current = (b.current + 1) % len(b.backends)
 
+	fmt.Println("Selected backend:", backend) // test log
 	return backend, nil
 }
+
 func (b *RoundRobinBalancer) HealthCheck() error {
 	return nil
 }
