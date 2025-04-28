@@ -1,0 +1,29 @@
+{
+	"server": {
+		"host": "localhost",
+		"port": 8080,
+		"max_connections": 100,
+		"read_timeout": 5000,
+		"write_timeout": 10000,
+		"idle_timeout": 120000
+	},
+	"balancer": {
+		"backends": [
+			"localhost:8081",
+			"localhost:8082",
+			"localhost:8083",
+			"localhost:8084",
+			"localhost:8085",
+			"localhost:8086"
+		]
+	},
+	"rate_limitter": {
+		"capacity": 10,
+		"rate": 1,
+		"refill_interval": 1000
+	},
+	"logger": {
+		"level": "info",
+		"logs_dir": "logs/app.log"
+	}
+}
