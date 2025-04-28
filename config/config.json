@@ -7,6 +7,9 @@
 		"write_timeout": 10000,
 		"idle_timeout": 120000
 	},
+	"database": {
+		"dsn": "postges://user:password@localhost:5432/mydb"
+	},
 	"balancer": {
 		"backends": [
 			"localhost:8081",

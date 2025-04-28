@@ -13,6 +13,7 @@ type AppConfig struct {
 	RateLimitter limitter.Config `json:"rate_limitter"`
 	Logger       LoggerConfig    `json:"logger"`
 	Server       ServerConfig    `json:"server"`
+	Database     DatabaseConfig  `json:"database"`
 }
 
 type ServerConfig struct {
@@ -21,6 +22,10 @@ type ServerConfig struct {
 	ReadTimeout  int    `json:"read_timeout"`
 	WriteTimeout int    `json:"write_timeout"`
 	IdleTimeout  int    `json:"idle_timeout"`
+}
+
+type DatabaseConfig struct {
+	DSN string `json:"dsn"`
 }
 
 type LoggerConfig struct {
