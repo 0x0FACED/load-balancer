@@ -8,16 +8,20 @@ import (
 	"strings"
 	"time"
 
-	"github.com/0x0FACED/load-balancer/internal/balancer"
 	"github.com/0x0FACED/zlog"
 )
 
-type Middleware struct {
-	log      *zlog.ZerologLogger
-	balancer balancer.Balancer
+type Logger struct {
+	log *zlog.ZerologLogger
 }
 
-func (m *Middleware) Logger(next http.Handler) http.Handler {
+func NewLoggerMiddleware(log *zlog.ZerologLogger) *Logger {
+	return &Logger{
+		log: log,
+	}
+}
+
+func (m *Logger) Logger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
