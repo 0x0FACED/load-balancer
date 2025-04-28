@@ -5,6 +5,7 @@ go 1.24.2
 require (
 	github.com/0x0FACED/zlog v0.0.0-20250418103450-69a685ad9576
 	github.com/lib/pq v1.10.9
+	go.uber.org/multierr v1.11.0
 )
 
 require (
