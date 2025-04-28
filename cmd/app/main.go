@@ -1,0 +1,112 @@
+package main
+
+import (
+	"context"
+	"database/sql"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"strconv"
+	"syscall"
+	"time"
+
+	appconfig "github.com/0x0FACED/load-balancer/config"
+	"github.com/0x0FACED/load-balancer/internal/app"
+	"github.com/0x0FACED/load-balancer/internal/balancer"
+	"github.com/0x0FACED/load-balancer/internal/limitter"
+	"github.com/0x0FACED/load-balancer/internal/middleware"
+	"github.com/0x0FACED/load-balancer/internal/server"
+	"github.com/0x0FACED/zlog"
+)
+
+func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	cfg, err := appconfig.Load()
+	if err != nil {
+		panic(err)
+	}
+
+	logger, err := zlog.NewZerologLogger(zlog.LoggerConfig{
+		LogLevel: cfg.Logger.Level,
+		LogsDir:  cfg.Logger.LogsDir,
+	})
+	if err != nil {
+		log.Fatalln("Failed to initialize logger:", err)
+	}
+
+	logger.Info().Msg("Logger initialized")
+
+	logger.Info().Any("config", cfg).Msg("Loaded configuration")
+
+	appLogger := logger.ChildWithName("component", "app")
+	middlewareLogger := logger.ChildWithName("component", "middleware")
+
+	balancer := balancer.NewRoundRobinBalancer(cfg.Balancer.Backends)
+
+	db, err := sql.Open("postgres", cfg.Database.DSN)
+	if err != nil {
+		appLogger.Fatal().Err(err).Msg("Failed to connect to database")
+	}
+
+	limitter := limitter.NewTokenBucketLimitter(db, cfg.RateLimitter)
+
+	loggerMiddleware := middleware.NewLoggerMiddleware(middlewareLogger)
+	proxyMiddleware := middleware.NewProxyMiddleware(balancer)
+	limitterMiddleware := middleware.NewRateLimiterMiddleware(limitter)
+
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Hello, world!"))
+	})
+
+	handler := loggerMiddleware.Logger(limitterMiddleware.Limitter(proxyMiddleware.Proxy(mux)))
+
+	// основной сервер
+	srv := &http.Server{
+		Addr:         cfg.Server.Host + ":" + strconv.Itoa(cfg.Server.Port),
+		Handler:      handler,
+		ReadTimeout:  time.Duration(cfg.Server.ReadTimeout) * time.Millisecond,
+		WriteTimeout: time.Duration(cfg.Server.WriteTimeout) * time.Millisecond,
+		IdleTimeout:  time.Duration(cfg.Server.IdleTimeout) * time.Millisecond,
+	}
+
+	muxReplica := http.NewServeMux()
+
+	muxReplica.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Hello, world from replica!"))
+	})
+
+	// реплики серверы
+	replicaServers := make([]*server.Server, len(cfg.Balancer.Backends))
+	for i, backend := range cfg.Balancer.Backends {
+		replicaServers[i] = server.New(
+			&http.Server{
+				Addr:         backend,
+				Handler:      muxReplica,
+				ReadTimeout:  time.Duration(cfg.Server.ReadTimeout) * time.Millisecond,
+				WriteTimeout: time.Duration(cfg.Server.WriteTimeout) * time.Millisecond,
+				IdleTimeout:  time.Duration(cfg.Server.IdleTimeout) * time.Millisecond,
+			},
+		)
+
+	}
+
+	app := app.New(srv, replicaServers, limitter, appLogger, *cfg)
+
+	go func() {
+		if err := app.Start(ctx); err != nil {
+			return
+		}
+	}()
+
+	<-ctx.Done()
+
+	if err := app.Shutdown(); err != nil {
+		return
+	}
+
+}
