@@ -35,28 +35,30 @@ func NewTokenBucketLimitter(db *sql.DB, cfg Config) *TokenBucketLimitter {
 	}
 }
 
-func (l *TokenBucketLimitter) Allow(clientID string) bool {
-	l.mu.Lock()
-	defer l.mu.Unlock()
+func (rl *TokenBucketLimitter) Allow(clientID string) bool {
+	rl.mu.RLock()
+	bucket, exists := rl.buckets[clientID]
+	rl.mu.RUnlock()
 
-	bucket, exists := l.buckets[clientID]
 	if !exists {
-		bucket = &Bucket{
-			Capacity:       10,
-			Tokens:         10,
-			RefillRate:     1,
-			LastRefillTime: time.Now(),
+		rl.mu.Lock()
+		defer rl.mu.Unlock()
+
+		// double-check
+		bucket, exists = rl.buckets[clientID]
+		if !exists {
+			bucket = &Bucket{
+				Capacity:       rl.cfg.Capacity,
+				Tokens:         rl.cfg.Capacity,
+				RefillRate:     rl.cfg.Rate,
+				LastRefillTime: time.Now(),
+			}
+			rl.buckets[clientID] = bucket
 		}
-		l.buckets[clientID] = bucket
 	}
 
-	now := time.Now()
-	elapsed := now.Sub(bucket.LastRefillTime)
-	bucket.Tokens += int(elapsed.Seconds()) * bucket.RefillRate
-	if bucket.Tokens > bucket.Capacity {
-		bucket.Tokens = bucket.Capacity
-	}
-	bucket.LastRefillTime = now
+	bucket.mu.Lock()
+	defer bucket.mu.Unlock()
 
 	if bucket.Tokens > 0 {
 		bucket.Tokens--
@@ -66,22 +68,22 @@ func (l *TokenBucketLimitter) Allow(clientID string) bool {
 	return false
 }
 
-func (l *TokenBucketLimitter) Reset(clientID string) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
+func (rl *TokenBucketLimitter) Reset(clientID string) {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
 
-	bucket, exists := l.buckets[clientID]
+	bucket, exists := rl.buckets[clientID]
 	if exists {
 		bucket.Tokens = bucket.Capacity
 		bucket.LastRefillTime = time.Now()
 	} else {
 		bucket = &Bucket{
-			Capacity:       10, // default capacity
-			Tokens:         10, // default tokens
-			RefillRate:     1,  // default refill rate
+			Capacity:       rl.cfg.Capacity, // default capacity
+			Tokens:         rl.cfg.Capacity, // default tokens
+			RefillRate:     rl.cfg.Rate,     // default refill rate
 			LastRefillTime: time.Now(),
 		}
-		l.buckets[clientID] = bucket
+		rl.buckets[clientID] = bucket
 	}
 }
 
@@ -95,7 +97,7 @@ func (rl *TokenBucketLimitter) Stop() error {
 			return err
 		}
 	}
-	
+
 	return nil
 }
 
