@@ -3,16 +3,16 @@ package balancer
 import "sync"
 
 type RoundRobinBalancer struct {
-	Backends []string
-	Current  int
+	backends []string
+	current  int
 
 	mu sync.Mutex
 }
 
 func NewRoundRobinBalancer(backends []string) *RoundRobinBalancer {
 	return &RoundRobinBalancer{
-		Backends: backends,
-		Current:  0,
+		backends: backends,
+		current:  0,
 	}
 }
 
@@ -20,12 +20,12 @@ func (b *RoundRobinBalancer) Next() (string, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	if len(b.Backends) == 0 {
+	if len(b.backends) == 0 {
 		return "", nil
 	}
 
-	backend := b.Backends[b.Current]
-	b.Current = (b.Current + 1) % len(b.Backends)
+	backend := b.backends[b.current]
+	b.current = (b.current + 1) % len(b.backends)
 
 	return backend, nil
 }
