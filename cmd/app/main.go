@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"strconv"
@@ -43,8 +44,9 @@ func main() {
 
 	appLogger := logger.ChildWithName("component", "app")
 	middlewareLogger := logger.ChildWithName("component", "middleware")
+	balancerLogger := logger.ChildWithName("component", "balancer")
 
-	balancer := balancer.NewRoundRobinBalancer(cfg.Balancer.Backends)
+	balancer := balancer.NewRoundRobinBalancer(cfg.Balancer.Backends, balancerLogger)
 
 	db, err := sql.Open("postgres", cfg.Database.DSN)
 	if err != nil {
@@ -61,6 +63,11 @@ func main() {
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Hello, world!"))
+	})
+
+	mux.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("pong"))
 	})
 
 	handler := loggerMiddleware.Logger(limitterMiddleware.Limitter(proxyMiddleware.Proxy(mux)))
@@ -80,12 +87,22 @@ func main() {
 		w.Write([]byte("Hello, world from replica!"))
 	})
 
+	muxReplica.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("pong from replica"))
+	})
+
 	// реплики серверы
 	replicaServers := make([]*server.Server, len(cfg.Balancer.Backends))
 	for i, backend := range cfg.Balancer.Backends {
+		addr, err := extractHostPort(backend)
+		if err != nil {
+			logger.Error().Err(err).Msgf("invalid backend URL: %s", backend)
+			continue
+		}
 		replicaServers[i] = server.New(
 			&http.Server{
-				Addr:         backend,
+				Addr:         addr,
 				Handler:      muxReplica,
 				ReadTimeout:  time.Duration(cfg.Server.ReadTimeout) * time.Millisecond,
 				WriteTimeout: time.Duration(cfg.Server.WriteTimeout) * time.Millisecond,
@@ -95,7 +112,7 @@ func main() {
 
 	}
 
-	app := app.New(srv, replicaServers, limitter, appLogger, *cfg)
+	app := app.New(srv, replicaServers, limitter, balancer, appLogger, *cfg)
 
 	go func() {
 		if err := app.Start(ctx); err != nil {
@@ -109,4 +126,12 @@ func main() {
 		return
 	}
 
+}
+
+func extractHostPort(backendURL string) (string, error) {
+	u, err := url.Parse(backendURL)
+	if err != nil {
+		return "", err
+	}
+	return u.Host, nil
 }
