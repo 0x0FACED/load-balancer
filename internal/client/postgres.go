@@ -32,6 +32,9 @@ func (r *clientRepository) Get(ctx context.Context, id string) (*Client, error) 
 		SELECT id, capacity, refill_rate FROM clients WHERE id = $1`, id).
 		Scan(&client.ID, &client.Capacity, &client.RefillRate)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
 		return nil, err
 	}
 
