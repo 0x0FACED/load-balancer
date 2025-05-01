@@ -36,7 +36,12 @@ type LoggerConfig struct {
 func Load() (*AppConfig, error) {
 	var cfg AppConfig
 
-	cfgFile, err := os.Open("./config/config.json")
+	path := os.Getenv("CONFIG_PATH")
+	if path == "" {
+		path = "./config/config.json"
+	}
+
+	cfgFile, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
