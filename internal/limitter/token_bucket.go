@@ -2,7 +2,6 @@ package limitter
 
 import (
 	"context"
-	"database/sql"
 	"sync"
 	"time"
 
@@ -20,41 +19,49 @@ type Bucket struct {
 
 type TokenBucketLimitter struct {
 	buckets map[string]*Bucket
-	db      *sql.DB
+	repo    Repository
 	cfg     Config
 
 	refillCancel context.CancelFunc
 	mu           sync.RWMutex
 }
 
-func NewTokenBucketLimitter(db *sql.DB, cfg Config) *TokenBucketLimitter {
+func NewTokenBucketLimitter(repo Repository, cfg Config) *TokenBucketLimitter {
 	return &TokenBucketLimitter{
 		buckets: make(map[string]*Bucket),
-		db:      db,
+		repo:    repo,
 		cfg:     cfg,
 	}
 }
 
-func (rl *TokenBucketLimitter) Allow(clientID string) bool {
+func (rl *TokenBucketLimitter) Allow(ctx context.Context, clientID string) bool {
 	rl.mu.RLock()
 	bucket, exists := rl.buckets[clientID]
 	rl.mu.RUnlock()
 
 	if !exists {
+		// double-check locking
 		rl.mu.Lock()
-		defer rl.mu.Unlock()
-
-		// double-check
 		bucket, exists = rl.buckets[clientID]
 		if !exists {
+			cl, err := rl.repo.Get(ctx, clientID)
+			if err != nil {
+				rl.mu.Unlock()
+				return false
+			}
+			if cl == nil {
+				rl.mu.Unlock()
+				return true
+			}
 			bucket = &Bucket{
-				Capacity:       rl.cfg.Capacity,
-				Tokens:         rl.cfg.Capacity,
-				RefillRate:     rl.cfg.Rate,
+				Capacity:       cl.Capacity,
+				RefillRate:     cl.RefillRate,
+				Tokens:         1,
 				LastRefillTime: time.Now(),
 			}
 			rl.buckets[clientID] = bucket
 		}
+		rl.mu.Unlock()
 	}
 
 	bucket.mu.Lock()
@@ -92,8 +99,8 @@ func (rl *TokenBucketLimitter) Stop() error {
 		rl.refillCancel()
 	}
 
-	if rl.db != nil {
-		if err := rl.db.Close(); err != nil {
+	if rl.repo != nil {
+		if err := rl.repo.Close(); err != nil {
 			return err
 		}
 	}
