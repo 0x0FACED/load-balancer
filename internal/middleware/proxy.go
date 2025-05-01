@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -59,8 +58,6 @@ func (m *ProxyMiddleware) Proxy(next http.Handler) http.Handler {
 				if _, ok := req.Header["User-Agent"]; !ok {
 					req.Header.Set("User-Agent", "")
 				}
-
-				log.Println("Proxying to", backendURL.String())
 			},
 			ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 				httpcommon.JSONError(w, http.StatusServiceUnavailable, err)
