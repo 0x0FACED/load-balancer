@@ -7,4 +7,6 @@ type Repository interface {
 	Get(ctx context.Context, id string) (*Client, error)
 	Update(ctx context.Context, cfg Client) error
 	Delete(ctx context.Context, id string) error
+
+	Close() error
 }
