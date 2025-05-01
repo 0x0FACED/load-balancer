@@ -1,6 +1,6 @@
 {
 	"server": {
-		"host": "localhost",
+		"host": "app",
 		"port": 8080,
 		"max_connections": 100,
 		"read_timeout": 5000,
@@ -13,12 +13,12 @@
 	"balancer": {
 		"type": "least_conn",
 		"backends": [
-			"http://localhost:8081",
-			"http://localhost:8082",
-			"http://localhost:8083",
-			"http://localhost:8084",
-			"http://localhost:8085",
-			"http://localhost:8086"
+			"http://app:8081",
+			"http://app:8082",
+			"http://app:8083",
+			"http://app:8084",
+			"http://app:8085",
+			"http://app:8086"
 		]
 	},
 	"rate_limitter": {
