@@ -12,5 +12,6 @@ const (
 type Balancer interface {
 	Next() (string, error)
 	Release(addr string)
+	SetAlive(addr string, alive bool)
 	StartHealthCheckJob(ctx context.Context)
 }

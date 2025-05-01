@@ -12,6 +12,10 @@
 	},
 	"balancer": {
 		"type": "least_conn",
+		"healthcheck": {
+			"interval": 2000,
+			"timeout": 3000
+		},
 		"backends": [
 			"http://app:8081",
 			"http://app:8082",

@@ -12,42 +12,18 @@ import (
 type LeastConnectionsBalancer struct {
 	backends []*BackendWithConnections
 	log      *zlog.ZerologLogger
-	mu       sync.Mutex
+
+	cfg Config
+	mu  sync.Mutex
 }
 
-type BackendWithConnections struct {
-	*Backend
-	connections int
-	mu          sync.Mutex
-}
-
-func (b *BackendWithConnections) Inc() {
-	b.mu.Lock()
-	b.connections++
-	b.mu.Unlock()
-}
-
-func (b *BackendWithConnections) Dec() {
-	b.mu.Lock()
-	if b.connections > 0 {
-		b.connections--
-	}
-	b.mu.Unlock()
-}
-
-func (b *BackendWithConnections) Connections() int {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.connections
-}
-
-func NewLeastConnectionsBalancer(backends []string, log *zlog.ZerologLogger) *LeastConnectionsBalancer {
-	backendsWithConnections := make([]*BackendWithConnections, len(backends))
-	for i, addr := range backends {
+func NewLeastConnectionsBalancer(log *zlog.ZerologLogger, cfg Config) *LeastConnectionsBalancer {
+	backendsWithConnections := make([]*BackendWithConnections, len(cfg.Backends))
+	for i, addr := range cfg.Backends {
 		backendsWithConnections[i] = &BackendWithConnections{
 			Backend: &Backend{
 				Addr:  addr,
-				Alive: true,
+				Alive: false,
 			},
 			connections: 0,
 		}
@@ -55,6 +31,7 @@ func NewLeastConnectionsBalancer(backends []string, log *zlog.ZerologLogger) *Le
 
 	return &LeastConnectionsBalancer{
 		backends: backendsWithConnections,
+		cfg:      cfg,
 		log:      log,
 	}
 }
@@ -99,12 +76,27 @@ func (b *LeastConnectionsBalancer) Release(addr string) {
 	b.log.Warn().Str("addr", addr).Msg("[LeastConn] release failed: backend not found")
 }
 
+func (b *LeastConnectionsBalancer) SetAlive(backend string, alive bool) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	for _, bk := range b.backends {
+		if bk.Addr == backend {
+			bk.SetAlive(alive)
+			b.log.Debug().Str("addr", backend).Msg("[LeastConn] set alive")
+			return
+		}
+	}
+
+	b.log.Warn().Str("addr", backend).Msg("[LeastConn] set alive failed: backend not found")
+}
+
 func (b *LeastConnectionsBalancer) StartHealthCheckJob(ctx context.Context) {
 	for _, backend := range b.backends {
 		go func(bk *BackendWithConnections) {
-			client := &http.Client{Timeout: healthCheckTimeout}
+			client := &http.Client{Timeout: time.Duration(b.cfg.HealthCheck.Timeout) * time.Millisecond}
 
-			ticker := time.NewTicker(healthCheckInterval)
+			ticker := time.NewTicker(time.Duration(b.cfg.HealthCheck.Interval) * time.Millisecond)
 			defer ticker.Stop()
 
 			for {

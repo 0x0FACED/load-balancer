@@ -21,21 +21,23 @@ type RoundRobinBalancer struct {
 
 	log *zlog.ZerologLogger
 
-	mu sync.Mutex
+	cfg Config
+	mu  sync.Mutex
 }
 
-func NewRoundRobinBalancer(backends []string, log *zlog.ZerologLogger) *RoundRobinBalancer {
-	backendsList := make([]*Backend, len(backends))
-	for i, addr := range backends {
+func NewRoundRobinBalancer(log *zlog.ZerologLogger, cfg Config) *RoundRobinBalancer {
+	backendsList := make([]*Backend, len(cfg.Backends))
+	for i, addr := range cfg.Backends {
 		backendsList[i] = &Backend{
 			Addr:  addr,
-			Alive: true,
+			Alive: false,
 		}
 	}
 
 	return &RoundRobinBalancer{
 		backends: backendsList,
 		current:  0,
+		cfg:      cfg,
 		log:      log,
 	}
 }
@@ -77,15 +79,27 @@ func (b *RoundRobinBalancer) Release(addr string) {
 	return
 }
 
-const healthCheckInterval = 3 * time.Second
-const healthCheckTimeout = 2 * time.Second
+func (b *RoundRobinBalancer) SetAlive(backend string, alive bool) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	for _, bk := range b.backends {
+		if bk.Addr == backend {
+			bk.SetAlive(alive)
+			b.log.Debug().Str("addr", backend).Msg("[RoundRobin] set alive")
+			return
+		}
+	}
+
+	b.log.Warn().Str("addr", backend).Msg("[RoundRobin] set alive failed: backend not found")
+}
 
 func (b *RoundRobinBalancer) StartHealthCheckJob(ctx context.Context) {
 	for _, backend := range b.backends {
 		go func(bk *Backend) {
-			client := &http.Client{Timeout: healthCheckTimeout}
+			client := &http.Client{Timeout: time.Duration(b.cfg.HealthCheck.Timeout) * time.Millisecond}
 
-			ticker := time.NewTicker(healthCheckInterval)
+			ticker := time.NewTicker(time.Duration(b.cfg.HealthCheck.Interval) * time.Millisecond)
 			defer ticker.Stop()
 
 			for {
