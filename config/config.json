@@ -11,6 +11,7 @@
 		"dsn": "postges://user:password@localhost:5432/mydb"
 	},
 	"balancer": {
+		"type": "least_conn",
 		"backends": [
 			"http://localhost:8081",
 			"http://localhost:8082",

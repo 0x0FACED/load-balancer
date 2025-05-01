@@ -1,5 +1,7 @@
 package balancer
 
 type Config struct {
-	Backends []string `json:"backends"`
+	// Type can be "round_robin", "least_conn". Change it in config.json
+	Type     BalancerType `json:"type"`
+	Backends []string     `json:"backends"`
 }

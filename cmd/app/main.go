@@ -47,7 +47,17 @@ func main() {
 	middlewareLogger := logger.ChildWithName("component", "middleware")
 	balancerLogger := logger.ChildWithName("component", "balancer")
 
-	balancer := balancer.NewRoundRobinBalancer(cfg.Balancer.Backends, balancerLogger)
+	var bal balancer.Balancer
+	switch cfg.Balancer.Type {
+	case balancer.RoundRobin:
+		bal = balancer.NewRoundRobinBalancer(cfg.Balancer.Backends, balancerLogger)
+	case balancer.LeastConn:
+		bal = balancer.NewLeastConnectionsBalancer(cfg.Balancer.Backends, balancerLogger)
+	default:
+		appLogger.Fatal().Msgf("Unknown balancer type: %s", cfg.Balancer.Type)
+	}
+
+	appLogger.Info().Msgf("Using %s balancer", cfg.Balancer.Type)
 
 	db, err := sql.Open("postgres", cfg.Database.DSN)
 	if err != nil {
@@ -59,7 +69,7 @@ func main() {
 	limitter := limitter.NewTokenBucketLimitter(clientRepo, cfg.RateLimitter)
 
 	loggerMiddleware := middleware.NewLoggerMiddleware(middlewareLogger)
-	proxyMiddleware := middleware.NewProxyMiddleware(balancer)
+	proxyMiddleware := middleware.NewProxyMiddleware(bal)
 	limitterMiddleware := middleware.NewRateLimiterMiddleware(limitter)
 
 	mux := http.NewServeMux()
@@ -104,7 +114,7 @@ func main() {
 
 	}
 
-	app := app.New(srv, replicaServers, limitter, balancer, appLogger, *cfg)
+	app := app.New(srv, replicaServers, limitter, bal, appLogger, *cfg)
 
 	go func() {
 		if err := app.Start(ctx); err != nil {
