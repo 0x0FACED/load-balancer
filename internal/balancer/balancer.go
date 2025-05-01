@@ -1,6 +1,8 @@
 package balancer
 
+import "context"
+
 type Balancer interface {
 	Next() (string, error)
-	HealthCheck() error
+	StartHealthCheckJob(ctx context.Context)
 }
