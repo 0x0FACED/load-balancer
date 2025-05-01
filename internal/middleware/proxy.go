@@ -43,16 +43,11 @@ func (m *ProxyMiddleware) Proxy(next http.Handler) http.Handler {
 func (m *ProxyMiddleware) director(req *http.Request) {
 	backend, err := m.balancer.Next()
 	if err != nil {
-		// todo: handle error
-		log.Println("Error getting backend:", err)
 		return
 	}
 
-	backend = "http://" + backend
-
 	backendURL, err := url.Parse(backend)
 	if err != nil {
-		// todo: handle error
 		return
 	}
 
