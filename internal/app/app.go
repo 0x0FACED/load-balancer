@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/0x0FACED/load-balancer/config"
+	"github.com/0x0FACED/load-balancer/internal/balancer"
 	"github.com/0x0FACED/load-balancer/internal/limitter"
 	"github.com/0x0FACED/load-balancer/internal/server"
 	"github.com/0x0FACED/zlog"
@@ -17,16 +18,18 @@ type App struct {
 	srv      *http.Server
 	backends []*server.Server // пул бэкендов
 	limitter limitter.RateLimitter
+	balancer balancer.Balancer
 
 	cfg config.AppConfig
 	log *zlog.ZerologLogger
 }
 
-func New(srv *http.Server, backends []*server.Server, limitter limitter.RateLimitter, log *zlog.ZerologLogger, cfg config.AppConfig) *App {
+func New(srv *http.Server, backends []*server.Server, limitter limitter.RateLimitter, balancer balancer.Balancer, log *zlog.ZerologLogger, cfg config.AppConfig) *App {
 	return &App{
 		srv:      srv,
 		backends: backends,
 		limitter: limitter,
+		balancer: balancer,
 		log:      log,
 		cfg:      cfg,
 	}
@@ -51,10 +54,11 @@ func (a *App) Start(ctx context.Context) error {
 		}(idx, backend)
 	}
 
-	go func() {
-		a.log.Info().Msg("Starting rate limiter refill job")
-		a.limitter.StartRefillJob(ctx)
-	}()
+	a.log.Info().Msg("Starting rate limiter refill job")
+	a.limitter.StartRefillJob(ctx)
+
+	a.log.Info().Msg("Starting health check job")
+	a.balancer.StartHealthCheckJob(ctx)
 
 	select {
 	case <-ctx.Done():
