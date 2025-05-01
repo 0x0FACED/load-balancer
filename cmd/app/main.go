@@ -50,9 +50,9 @@ func main() {
 	var bal balancer.Balancer
 	switch cfg.Balancer.Type {
 	case balancer.RoundRobin:
-		bal = balancer.NewRoundRobinBalancer(cfg.Balancer.Backends, balancerLogger)
+		bal = balancer.NewRoundRobinBalancer(balancerLogger, cfg.Balancer)
 	case balancer.LeastConn:
-		bal = balancer.NewLeastConnectionsBalancer(cfg.Balancer.Backends, balancerLogger)
+		bal = balancer.NewLeastConnectionsBalancer(balancerLogger, cfg.Balancer)
 	default:
 		appLogger.Fatal().Msgf("Unknown balancer type: %s", cfg.Balancer.Type)
 	}
