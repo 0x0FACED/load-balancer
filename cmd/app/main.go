@@ -15,6 +15,7 @@ import (
 	appconfig "github.com/0x0FACED/load-balancer/config"
 	"github.com/0x0FACED/load-balancer/internal/app"
 	"github.com/0x0FACED/load-balancer/internal/balancer"
+	"github.com/0x0FACED/load-balancer/internal/client"
 	"github.com/0x0FACED/load-balancer/internal/limitter"
 	"github.com/0x0FACED/load-balancer/internal/middleware"
 	"github.com/0x0FACED/load-balancer/internal/server"
@@ -53,22 +54,15 @@ func main() {
 		appLogger.Fatal().Err(err).Msg("Failed to connect to database")
 	}
 
-	limitter := limitter.NewTokenBucketLimitter(db, cfg.RateLimitter)
+	clientRepo := client.NewPostgresRepo(db)
+
+	limitter := limitter.NewTokenBucketLimitter(clientRepo, cfg.RateLimitter)
 
 	loggerMiddleware := middleware.NewLoggerMiddleware(middlewareLogger)
 	proxyMiddleware := middleware.NewProxyMiddleware(balancer)
 	limitterMiddleware := middleware.NewRateLimiterMiddleware(limitter)
 
 	mux := http.NewServeMux()
-
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hello, world!"))
-	})
-
-	mux.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("pong"))
-	})
 
 	handler := loggerMiddleware.Logger(limitterMiddleware.Limitter(proxyMiddleware.Proxy(mux)))
 
@@ -82,10 +76,8 @@ func main() {
 	}
 
 	muxReplica := http.NewServeMux()
-
-	muxReplica.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hello, world from replica!"))
-	})
+	clientHandler := client.NewClientHandler(clientRepo)
+	clientHandler.RegisterRoutes(muxReplica)
 
 	muxReplica.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
