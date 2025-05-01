@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/0x0FACED/load-balancer/internal/balancer"
+	"github.com/0x0FACED/load-balancer/internal/pkg/httpcommon"
 )
 
 type ProxyMiddleware struct {
@@ -27,7 +28,7 @@ func NewProxyMiddleware(balancer balancer.Balancer) *ProxyMiddleware {
 		Transport: &http.Transport{
 			MaxIdleConnsPerHost: 100,
 			IdleConnTimeout:     90 * time.Second,
-			DisableCompression:  true,
+			DisableCompression:  false,
 		},
 	}
 
@@ -64,7 +65,7 @@ func (m *ProxyMiddleware) director(req *http.Request) {
 }
 
 func (m *ProxyMiddleware) errorHandler(w http.ResponseWriter, r *http.Request, err error) {
-	http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
+	httpcommon.JSONError(w, http.StatusServiceUnavailable, err)
 }
 
 func singleJoiningSlash(a, b string) string {
