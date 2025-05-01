@@ -12,12 +12,12 @@
 	},
 	"balancer": {
 		"backends": [
-			"localhost:8081",
-			"localhost:8082",
-			"localhost:8083",
-			"localhost:8084",
-			"localhost:8085",
-			"localhost:8086"
+			"http://localhost:8081",
+			"http://localhost:8082",
+			"http://localhost:8083",
+			"http://localhost:8084",
+			"http://localhost:8085",
+			"http://localhost:8086"
 		]
 	},
 	"rate_limitter": {
