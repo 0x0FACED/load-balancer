@@ -21,8 +21,7 @@ type RoundRobinBalancer struct {
 
 	log *zlog.ZerologLogger
 
-	cancel context.CancelFunc
-	mu     sync.Mutex
+	mu sync.Mutex
 }
 
 func NewRoundRobinBalancer(backends []string, log *zlog.ZerologLogger) *RoundRobinBalancer {
@@ -73,13 +72,15 @@ func (b *RoundRobinBalancer) Next() (string, error) {
 	return backend.Addr, nil
 }
 
+// заглушка
+func (b *RoundRobinBalancer) Release(addr string) {
+	return
+}
+
 const healthCheckInterval = 3 * time.Second
 const healthCheckTimeout = 2 * time.Second
 
 func (b *RoundRobinBalancer) StartHealthCheckJob(ctx context.Context) {
-	ctx, cancel := context.WithCancel(ctx)
-	b.cancel = cancel
-
 	for _, backend := range b.backends {
 		go func(bk *Backend) {
 			client := &http.Client{Timeout: healthCheckTimeout}
@@ -101,7 +102,7 @@ func (b *RoundRobinBalancer) StartHealthCheckJob(ctx context.Context) {
 						continue
 					}
 
-					resp.Body.Close()
+					_ = resp.Body.Close()
 					if resp.StatusCode == http.StatusOK {
 						b.log.Debug().Str("addr", bk.Addr).Int("code", resp.StatusCode).Msg("[HealthCheck] is UP")
 						bk.SetAlive(true)
