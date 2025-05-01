@@ -50,16 +50,22 @@ func (rl *TokenBucketLimitter) Allow(ctx context.Context, clientID string) bool 
 				return false
 			}
 			if cl == nil {
-				rl.mu.Unlock()
-				return true
+				bucket = &Bucket{
+					Capacity:       rl.cfg.Capacity,
+					RefillRate:     rl.cfg.Rate,
+					Tokens:         1,
+					LastRefillTime: time.Now(),
+				}
+				rl.buckets[clientID] = bucket
+			} else {
+				bucket = &Bucket{
+					Capacity:       cl.Capacity,
+					RefillRate:     cl.RefillRate,
+					Tokens:         1,
+					LastRefillTime: time.Now(),
+				}
+				rl.buckets[clientID] = bucket
 			}
-			bucket = &Bucket{
-				Capacity:       cl.Capacity,
-				RefillRate:     cl.RefillRate,
-				Tokens:         1,
-				LastRefillTime: time.Now(),
-			}
-			rl.buckets[clientID] = bucket
 		}
 		rl.mu.Unlock()
 	}
