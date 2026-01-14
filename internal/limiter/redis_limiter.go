@@ -76,6 +76,12 @@ func (rl *RedisTokenBucketLimiter) clientConfig(ctx context.Context, clientID st
 	return nil, nil
 }
 
+// Lua script for getting client tokens by clientID, refilling tokens
+// and calculating new tokens amount and returning 1 if Allowed, 0 otherwise.
+//
+// Its more perfect solution, because we dont need to iterate over ALL clients every tick.
+// We just refill client tokens if he does request.
+// All logic in 1 lua script.
 var script string = `
 local key = KEYS[1]
 local capacity = tonumber(ARGV[1])
@@ -87,7 +93,7 @@ local ttl = tonumber(ARGV[4])
 local tokens = redis.call('HGET', key, 'tokens')
 local last_refill = redis.call('HGET', key, 'last_refill')
 
--- init new client of there are no tokens
+-- init new client if there are no tokens
 if tokens == false then
 	redis.call('HSET', key, 'tokens', capacity - 1)
 	redis.call('HSET', key, 'last_refill', now)
