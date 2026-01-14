@@ -4,15 +4,15 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/0x0FACED/load-balancer/internal/limitter"
+	"github.com/0x0FACED/load-balancer/internal/limiter"
 	"github.com/0x0FACED/load-balancer/internal/pkg/httpcommon"
 )
 
 type RateLimiterMiddleware struct {
-	limiter limitter.RateLimitter
+	limiter limiter.RateLimitter
 }
 
-func NewRateLimiterMiddleware(limiter limitter.RateLimitter) *RateLimiterMiddleware {
+func NewRateLimiterMiddleware(limiter limiter.RateLimitter) *RateLimiterMiddleware {
 	return &RateLimiterMiddleware{
 		limiter: limiter,
 	}

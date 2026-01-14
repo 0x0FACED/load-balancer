@@ -8,7 +8,7 @@ import (
 
 	"github.com/0x0FACED/load-balancer/config"
 	"github.com/0x0FACED/load-balancer/internal/balancer"
-	"github.com/0x0FACED/load-balancer/internal/limitter"
+	"github.com/0x0FACED/load-balancer/internal/limiter"
 	"github.com/0x0FACED/load-balancer/internal/server"
 	"github.com/0x0FACED/zlog"
 	"go.uber.org/multierr"
@@ -17,14 +17,21 @@ import (
 type App struct {
 	srv      *http.Server
 	backends []*server.Server // пул бэкендов
-	limitter limitter.RateLimitter
+	limitter limiter.RateLimitter
 	balancer balancer.Balancer
 
 	cfg config.AppConfig
 	log *zlog.ZerologLogger
 }
 
-func New(srv *http.Server, backends []*server.Server, limitter limitter.RateLimitter, balancer balancer.Balancer, log *zlog.ZerologLogger, cfg config.AppConfig) *App {
+func New(
+	srv *http.Server,
+	backends []*server.Server,
+	limitter limiter.RateLimitter,
+	balancer balancer.Balancer,
+	log *zlog.ZerologLogger,
+	cfg config.AppConfig,
+) *App {
 	return &App{
 		srv:      srv,
 		backends: backends,

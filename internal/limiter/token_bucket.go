@@ -1,4 +1,4 @@
-package limitter
+package limiter
 
 import (
 	"context"
@@ -17,7 +17,7 @@ type Bucket struct {
 	mu sync.Mutex
 }
 
-type TokenBucketLimitter struct {
+type TokenBucketLimiter struct {
 	buckets map[string]*Bucket
 	repo    Repository
 	cfg     Config
@@ -26,15 +26,15 @@ type TokenBucketLimitter struct {
 	mu           sync.RWMutex
 }
 
-func NewTokenBucketLimitter(repo Repository, cfg Config) *TokenBucketLimitter {
-	return &TokenBucketLimitter{
+func NewTokenBucketLimiter(repo Repository, cfg Config) *TokenBucketLimiter {
+	return &TokenBucketLimiter{
 		buckets: make(map[string]*Bucket),
 		repo:    repo,
 		cfg:     cfg,
 	}
 }
 
-func (rl *TokenBucketLimitter) Allow(ctx context.Context, clientID string) bool {
+func (rl *TokenBucketLimiter) Allow(ctx context.Context, clientID string) bool {
 	rl.mu.RLock()
 	bucket, exists := rl.buckets[clientID]
 	rl.mu.RUnlock()
@@ -81,7 +81,7 @@ func (rl *TokenBucketLimitter) Allow(ctx context.Context, clientID string) bool 
 	return false
 }
 
-func (rl *TokenBucketLimitter) Reset(clientID string) {
+func (rl *TokenBucketLimiter) Reset(clientID string) {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
 
@@ -100,7 +100,7 @@ func (rl *TokenBucketLimitter) Reset(clientID string) {
 	}
 }
 
-func (rl *TokenBucketLimitter) Stop() error {
+func (rl *TokenBucketLimiter) Stop() error {
 	if rl.refillCancel != nil {
 		rl.refillCancel()
 	}
@@ -114,7 +114,7 @@ func (rl *TokenBucketLimitter) Stop() error {
 	return nil
 }
 
-func (rl *TokenBucketLimitter) StartRefillJob(ctx context.Context) {
+func (rl *TokenBucketLimiter) StartRefillJob(ctx context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
 	rl.refillCancel = cancel
 
@@ -132,7 +132,7 @@ func (rl *TokenBucketLimitter) StartRefillJob(ctx context.Context) {
 	}()
 }
 
-func (rl *TokenBucketLimitter) refillBuckets() {
+func (rl *TokenBucketLimiter) refillBuckets() {
 	rl.mu.RLock()
 	defer rl.mu.RUnlock()
 

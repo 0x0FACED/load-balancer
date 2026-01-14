@@ -5,15 +5,15 @@ import (
 	"os"
 
 	"github.com/0x0FACED/load-balancer/internal/balancer"
-	"github.com/0x0FACED/load-balancer/internal/limitter"
+	"github.com/0x0FACED/load-balancer/internal/limiter"
 )
 
 type AppConfig struct {
-	Balancer     balancer.Config `json:"balancer"`
-	RateLimitter limitter.Config `json:"rate_limitter"`
-	Logger       LoggerConfig    `json:"logger"`
-	Server       ServerConfig    `json:"server"`
-	Database     DatabaseConfig  `json:"database"`
+	Balancer    balancer.Config `json:"balancer"`
+	RateLimiter limiter.Config  `json:"rate_limiter"`
+	Logger      LoggerConfig    `json:"logger"`
+	Server      ServerConfig    `json:"server"`
+	Database    DatabaseConfig  `json:"database"`
 }
 
 type ServerConfig struct {

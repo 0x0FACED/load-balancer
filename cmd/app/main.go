@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"os/signal"
 	"strconv"
 	"syscall"
@@ -16,21 +15,24 @@ import (
 	"github.com/0x0FACED/load-balancer/internal/app"
 	"github.com/0x0FACED/load-balancer/internal/balancer"
 	"github.com/0x0FACED/load-balancer/internal/client"
-	"github.com/0x0FACED/load-balancer/internal/limitter"
+	"github.com/0x0FACED/load-balancer/internal/limiter"
 	"github.com/0x0FACED/load-balancer/internal/middleware"
 	"github.com/0x0FACED/load-balancer/internal/server"
 	"github.com/0x0FACED/zlog"
 )
 
 func main() {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	// graceful shutdown
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	// app config load
 	cfg, err := appconfig.Load()
 	if err != nil {
 		panic(err)
 	}
 
+	// logger init
 	logger, err := zlog.NewZerologLogger(zlog.LoggerConfig{
 		LogLevel: cfg.Logger.Level,
 		LogsDir:  cfg.Logger.LogsDir,
@@ -43,10 +45,12 @@ func main() {
 
 	logger.Info().Any("config", cfg).Msg("Loaded configuration")
 
+	// creating logger for different components
 	appLogger := logger.ChildWithName("component", "app")
 	middlewareLogger := logger.ChildWithName("component", "middleware")
 	balancerLogger := logger.ChildWithName("component", "balancer")
 
+	// init balancer
 	var bal balancer.Balancer
 	switch cfg.Balancer.Type {
 	case balancer.RoundRobin:
@@ -59,14 +63,16 @@ func main() {
 
 	appLogger.Info().Msgf("Using %s balancer", cfg.Balancer.Type)
 
+	// init database
 	db, err := sql.Open("postgres", cfg.Database.DSN)
 	if err != nil {
 		appLogger.Fatal().Err(err).Msg("Failed to connect to database")
 	}
 
+	// TODO: remove
 	clientRepo := client.NewPostgresRepo(db)
 
-	limitter := limitter.NewTokenBucketLimitter(clientRepo, cfg.RateLimitter)
+	limitter := limiter.NewTokenBucketLimiter(clientRepo, cfg.RateLimiter)
 
 	loggerMiddleware := middleware.NewLoggerMiddleware(middlewareLogger)
 	proxyMiddleware := middleware.NewProxyMiddleware(bal)

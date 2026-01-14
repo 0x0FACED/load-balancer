@@ -1,4 +1,4 @@
-package limitter
+package limiter
 
 type Config struct {
 	Capacity        int `json:"capacity"`

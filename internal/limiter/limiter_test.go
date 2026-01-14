@@ -1,20 +1,20 @@
-package limitter_test
+package limiter_test
 
 import (
 	"context"
 	"testing"
 	"time"
 
-	"github.com/0x0FACED/load-balancer/internal/limitter"
-	"github.com/0x0FACED/load-balancer/internal/limitter/mocks"
+	"github.com/0x0FACED/load-balancer/internal/limiter"
+	"github.com/0x0FACED/load-balancer/internal/limiter/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
 func TestAllow_NewClient(t *testing.T) {
 	mockRepo := new(mocks.MockRepo)
-	cfg := limitter.Config{Capacity: 3, Rate: 1, RefillIntrerval: 100}
-	lim := limitter.NewTokenBucketLimitter(mockRepo, cfg)
+	cfg := limiter.Config{Capacity: 3, Rate: 1, RefillIntrerval: 100}
+	lim := limiter.NewTokenBucketLimiter(mockRepo, cfg)
 
 	mockRepo.On("Get", mock.Anything, "user1").Return(nil, nil)
 
@@ -24,8 +24,8 @@ func TestAllow_NewClient(t *testing.T) {
 
 func TestAllow_NotEnoughTokens(t *testing.T) {
 	mockRepo := new(mocks.MockRepo)
-	cfg := limitter.Config{Capacity: 2, Rate: 1, RefillIntrerval: 100}
-	lim := limitter.NewTokenBucketLimitter(mockRepo, cfg)
+	cfg := limiter.Config{Capacity: 2, Rate: 1, RefillIntrerval: 100}
+	lim := limiter.NewTokenBucketLimiter(mockRepo, cfg)
 
 	mockRepo.On("Get", mock.Anything, "user2").Return(nil, nil)
 
@@ -35,8 +35,8 @@ func TestAllow_NotEnoughTokens(t *testing.T) {
 
 func TestReset(t *testing.T) {
 	mockRepo := new(mocks.MockRepo)
-	cfg := limitter.Config{Capacity: 2, Rate: 1, RefillIntrerval: 100}
-	lim := limitter.NewTokenBucketLimitter(mockRepo, cfg)
+	cfg := limiter.Config{Capacity: 2, Rate: 1, RefillIntrerval: 100}
+	lim := limiter.NewTokenBucketLimiter(mockRepo, cfg)
 
 	mockRepo.On("Get", mock.Anything, "user3").Return(nil, nil)
 
@@ -49,8 +49,8 @@ func TestReset(t *testing.T) {
 
 func TestRefillJob(t *testing.T) {
 	mockRepo := new(mocks.MockRepo)
-	cfg := limitter.Config{Capacity: 2, Rate: 2, RefillIntrerval: 100}
-	lim := limitter.NewTokenBucketLimitter(mockRepo, cfg)
+	cfg := limiter.Config{Capacity: 2, Rate: 2, RefillIntrerval: 100}
+	lim := limiter.NewTokenBucketLimiter(mockRepo, cfg)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	lim.StartRefillJob(ctx)

@@ -25,7 +25,7 @@
 			"http://app:8086"
 		]
 	},
-	"rate_limitter": {
+	"rate_limiter": {
 		"capacity": 10,
 		"rate": 1,
 		"refill_interval": 1000
