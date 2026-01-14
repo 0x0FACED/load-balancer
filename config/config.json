@@ -28,7 +28,8 @@
 	"rate_limiter": {
 		"capacity": 10,
 		"rate": 1,
-		"refill_interval": 1000
+		"refill_interval": 1000,
+		"ttl": 3600
 	},
 	"logger": {
 		"level": "info",

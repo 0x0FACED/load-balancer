@@ -35,6 +35,7 @@ func (h *ClientHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if client.ID == "" {
 		client.ID = httpcommon.ClientIDFromRequest(r)
 	}
+
 	if err := h.repository.Create(r.Context(), client); err != nil {
 		httpcommon.JSONError(w, http.StatusInternalServerError, err)
 		return
