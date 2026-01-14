@@ -15,21 +15,23 @@
 		"healthcheck": {
 			"interval": 2000,
 			"timeout": 3000
-		},
-		"backends": [
-			"http://app:8081",
-			"http://app:8082",
-			"http://app:8083",
-			"http://app:8084",
-			"http://app:8085",
-			"http://app:8086"
-		]
+		}
 	},
 	"rate_limiter": {
+		"type": "redis",
 		"capacity": 10,
 		"rate": 1,
 		"refill_interval": 1000,
 		"ttl": 3600
+	},
+	"redis": {
+		"address": "redis:6379",
+		"password": "",
+		"db": 0,
+		"pool_size": 10,
+		"dial_timeout": 5000,
+		"read_timeout": 3000,
+		"write_timeout": 3000
 	},
 	"logger": {
 		"level": "info",

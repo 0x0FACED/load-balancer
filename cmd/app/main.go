@@ -17,7 +17,6 @@ import (
 	"github.com/0x0FACED/load-balancer/internal/client"
 	"github.com/0x0FACED/load-balancer/internal/limiter"
 	"github.com/0x0FACED/load-balancer/internal/middleware"
-	"github.com/0x0FACED/load-balancer/internal/server"
 	"github.com/0x0FACED/zlog"
 )
 
@@ -72,15 +71,15 @@ func main() {
 	// TODO: remove
 	clientRepo := client.NewPostgresRepo(db)
 
-	limitter := limiter.NewTokenBucketLimiter(clientRepo, cfg.RateLimiter)
+	limiter := limiter.NewTokenBucketLimiter(clientRepo, cfg.RateLimiter)
 
 	loggerMiddleware := middleware.NewLoggerMiddleware(middlewareLogger)
 	proxyMiddleware := middleware.NewProxyMiddleware(bal)
-	limitterMiddleware := middleware.NewRateLimiterMiddleware(limitter)
+	limitterMiddleware := middleware.NewRateLimiterMiddleware(limiter)
 
 	mux := http.NewServeMux()
 
-	handler := loggerMiddleware.Logger(limitterMiddleware.Limitter(proxyMiddleware.Proxy(mux)))
+	handler := loggerMiddleware.Logger(limitterMiddleware.Limiter(proxyMiddleware.Proxy(mux)))
 
 	// основной сервер
 	srv := &http.Server{
@@ -91,36 +90,7 @@ func main() {
 		IdleTimeout:  time.Duration(cfg.Server.IdleTimeout) * time.Millisecond,
 	}
 
-	muxReplica := http.NewServeMux()
-	clientHandler := client.NewClientHandler(clientRepo)
-	clientHandler.RegisterRoutes(muxReplica)
-
-	muxReplica.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("pong from replica"))
-	})
-
-	// реплики серверы
-	replicaServers := make([]*server.Server, len(cfg.Balancer.Backends))
-	for i, backend := range cfg.Balancer.Backends {
-		addr, err := extractHostPort(backend)
-		if err != nil {
-			logger.Error().Err(err).Msgf("invalid backend URL: %s", backend)
-			continue
-		}
-		replicaServers[i] = server.New(
-			&http.Server{
-				Addr:         addr,
-				Handler:      muxReplica,
-				ReadTimeout:  time.Duration(cfg.Server.ReadTimeout) * time.Millisecond,
-				WriteTimeout: time.Duration(cfg.Server.WriteTimeout) * time.Millisecond,
-				IdleTimeout:  time.Duration(cfg.Server.IdleTimeout) * time.Millisecond,
-			},
-		)
-
-	}
-
-	app := app.New(srv, replicaServers, limitter, bal, appLogger, *cfg)
+	app := app.New(srv, limiter, bal, appLogger, *cfg)
 
 	go func() {
 		if err := app.Start(ctx); err != nil {

@@ -14,6 +14,7 @@ type AppConfig struct {
 	Logger      LoggerConfig    `json:"logger"`
 	Server      ServerConfig    `json:"server"`
 	Database    DatabaseConfig  `json:"database"`
+	Redis       RedisConfig     `json:"redis"`
 }
 
 type ServerConfig struct {
@@ -26,6 +27,16 @@ type ServerConfig struct {
 
 type DatabaseConfig struct {
 	DSN string `json:"dsn"`
+}
+
+type RedisConfig struct {
+	Address      string `json:"address"`
+	Password     string `json:"password"`
+	DB           int    `json:"db"`
+	PoolSize     int    `json:"pool_size"`
+	DialTimeout  int    `json:"dial_timeout"`
+	ReadTimeout  int    `json:"read_timeout"`
+	WriteTimeout int    `json:"write_timeout"`
 }
 
 type LoggerConfig struct {

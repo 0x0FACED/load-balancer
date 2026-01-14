@@ -18,7 +18,7 @@ func NewRateLimiterMiddleware(limiter limiter.RateLimitter) *RateLimiterMiddlewa
 	}
 }
 
-func (m *RateLimiterMiddleware) Limitter(next http.Handler) http.Handler {
+func (m *RateLimiterMiddleware) Limiter(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		clientID := httpcommon.ClientIDFromRequest(r)
 		if !m.limiter.Allow(r.Context(), clientID) {
